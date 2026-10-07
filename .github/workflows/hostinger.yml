@@ -1,0 +1,38 @@
+name: Terbitkan ke Hostinger
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  terbitkan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil kod
+        uses: actions/checkout@v4
+
+      - name: Sediakan Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Bina laman
+        run: |
+          npm ci
+          npm run build
+
+      - name: Hantar hasil ke branch hostinger
+        run: |
+          cd dist
+          git init
+          git checkout -b hostinger
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Terbit laman"
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" hostinger
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
