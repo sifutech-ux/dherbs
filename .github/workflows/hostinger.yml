@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Ambil kod
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Sediakan Node
         uses: actions/setup-node@v4
@@ -29,12 +27,16 @@ jobs:
           npm run build
 
       - name: Hantar hasil ke branch main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cd dist
+          git init
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Terbit laman"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch origin main
-          parent=$(git rev-parse origin/main)
-          git -C dist init
-          git -C dist add -A
-          git -C dist -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Terbit laman"
-          tree=$(git -C dist rev-parse 'HEAD^{tree}')
-          new=$(git commit-tree "$tree" -p "$parent" -m "Terbit laman")
+          parent=$(git rev-parse FETCH_HEAD)
+          tree=$(git rev-parse 'HEAD^{tree}')
+          new=$(git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit-tree "$tree" -p "$parent" -m "Terbit laman")
           git push origin "$new:main"
