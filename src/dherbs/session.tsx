@@ -1,10 +1,12 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react"
+import { rumahCall } from "./remote"
 import {
   loadDB,
   readSession,
@@ -26,11 +28,26 @@ const HouseContext = createContext<HouseValue | null>(null)
 export function HouseProvider({ children }: { children: ReactNode }) {
   const [session, setLocal] = useState<Session | null>(() => readSession())
   const [tick, setTick] = useState(0)
+  const [remote, setRemote] = useState<DB | null>(null)
 
-  const db = useMemo(
-    () => (session ? loadDB(session.demo) : loadDB(false)),
-    [session, tick],
-  )
+  useEffect(() => {
+    if (!session || session.demo || !session.token) return
+    let stop = false
+    rumahCall("state", {}, session.token).then((result) => {
+      if (stop || !result.ok || !result.db) return
+      setRemote(result.db)
+    })
+    return () => {
+      stop = true
+    }
+  }, [session, tick])
+
+  const db = useMemo(() => {
+    if (session && !session.demo && session.token) {
+      return remote ?? { agents: [], orders: [], sales: [], dropships: [] }
+    }
+    return loadDB(session?.demo ?? false)
+  }, [session, tick, remote])
 
   const value: HouseValue = {
     session,

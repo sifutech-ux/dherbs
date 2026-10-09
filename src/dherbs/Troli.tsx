@@ -13,6 +13,7 @@ import {
   unitPrice,
 } from "./catalog"
 import { useHouse } from "./session"
+import { rumahCall } from "./remote"
 import { checkoutCompany, checkoutDropship } from "./store"
 
 export function Troli() {
@@ -167,15 +168,17 @@ export function Troli() {
           <button
             type="button"
             className="send"
-            onClick={() => {
-              const result = checkoutCompany(session.demo, agent.id, cart.lines)
+            onClick={async () => {
+              const result = session.demo
+                ? checkoutCompany(session.demo, agent.id, cart.lines)
+                : await rumahCall("beli", { lines: cart.lines }, session.token)
               if (!result.ok) {
                 setNotice(result.error)
                 return
               }
               cart.clear()
               setNotice(
-                `Resit ${tierLabel(result.tier)} ${rm(result.total)}. Stok masuk ke tangan anda.`,
+                `Resit ${tierLabel(result.tier as "master" | "stockist" | "agen" | "pelanggan")} ${rm(result.total ?? 0)}. Stok masuk selepas rumah sahkan bayaran.`,
               )
               refresh()
             }}

@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { CartProvider } from "./dherbs/cart"
 import { Enter } from "./dherbs/Enter"
 import { Frame } from "./dherbs/Frame"
-import { Dompet, Gate, Kedai, Stok } from "./dherbs/Rooms"
+import { Dompet, Gate, Kedai, Pesanan, Stok } from "./dherbs/Rooms"
 import { HouseProvider } from "./dherbs/session"
 import { Shop } from "./dherbs/Shop"
 import { Troli } from "./dherbs/Troli"
@@ -30,6 +30,7 @@ export default function App() {
               <Route path="stok" element={<Gate><Stok /></Gate>} />
               <Route path="pokok" element={<Navigate to="/stok" replace />} />
               <Route path="dompet" element={<Gate><Dompet /></Gate>} />
+              <Route path="pesanan" element={<Gate><Pesanan /></Gate>} />
             </Route>
             <Route path="la" element={<Shell />}>
               <Route index element={<Home />} />

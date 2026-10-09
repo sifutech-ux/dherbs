@@ -14,10 +14,10 @@ export const TIER_RATE: Record<Tier, number> = {
   pelanggan: 1,
 }
 
-export const RANKS = ["ejen", "dropship"] as const
+export const RANKS = ["ejen", "dropship", "rumah"] as const
 export type Rank = (typeof RANKS)[number]
-export const SIGNUP_RANKS = RANKS
-export type SignupRank = Rank
+export const SIGNUP_RANKS = ["ejen", "dropship"] as const
+export type SignupRank = (typeof SIGNUP_RANKS)[number]
 
 export type Product = {
   id: string
@@ -53,7 +53,9 @@ export function findProduct(id: string) {
 }
 
 export function rankLabel(rank: Rank) {
-  return rank === "ejen" ? "Ejen" : "Dropship"
+  if (rank === "ejen") return "Ejen"
+  if (rank === "rumah") return "Rumah"
+  return "Dropship"
 }
 
 export function tierLabel(tier: Tier) {

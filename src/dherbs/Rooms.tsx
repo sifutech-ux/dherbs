@@ -1,9 +1,10 @@
 import type { ReactNode } from "react"
 import { Navigate } from "react-router-dom"
-import { catalog, rankLabel, rm } from "./catalog"
+import { catalog, rankLabel, rm, tierLabel } from "./catalog"
+import { rumahCall } from "./remote"
 import { Shop } from "./Shop"
 import { useHouse } from "./session"
-import { fifoCost, profitOf, stockCount } from "./store"
+import { confirmInventory, confirmReceipt, fifoCost, markShipped, profitOf, stockCount } from "./store"
 
 export function Gate({ children }: { children: ReactNode }) {
   const { session } = useHouse()
@@ -15,8 +16,103 @@ export function Kedai() {
   return <Shop agentView />
 }
 
+export function Pesanan() {
+  const { session, db, refresh } = useHouse()
+  const agent = db.agents.find((item) => item.id === session?.id)
+  if (!session || !agent) return null
+  if (agent.rank !== "rumah") {
+    return <p className="quiet wrap page">Meja ini untuk rumah.</p>
+  }
+  const receipts = new Map<string, typeof db.orders>()
+  for (const order of db.orders) {
+    if (order.source !== "rumah" || order.status !== "menunggu-bayaran") continue
+    const list = receipts.get(order.receiptId) ?? []
+    list.push(order)
+    receipts.set(order.receiptId, list)
+  }
+  const waitingShips = db.dropships.filter((order) => order.status === "menunggu-bayaran")
+
+  return (
+    <article className="page wallet">
+      <header className="page-head wrap">
+        <p className="section-label">Rumah</p>
+        <h1>Pesanan menunggu.</h1>
+        <p className="lede">
+          Sahkan bayaran dahulu. Stok ejen hanya dikira selepas wang syarikat masuk. Tiada
+          komisen untuk pendaftaran.
+        </p>
+      </header>
+      <section className="wrap">
+        {[...receipts.entries()].length === 0 ? (
+          <p className="quiet">Tiada resit syarikat yang menunggu.</p>
+        ) : (
+          <ul className="tx">
+            {[...receipts.entries()].map(([receiptId, lines]) => {
+              const buyer = db.agents.find((item) => item.id === lines[0]?.buyerId)
+              const total = lines.reduce((sum, line) => sum + line.price * line.qty, 0)
+              return (
+                <li key={receiptId}>
+                  <span className="tx-mark">R</span>
+                  <p>
+                    <strong>{buyer?.name ?? "Ejen"}</strong>
+                    <small>
+                      {lines.map((line) => `${line.qty} ${catalog.find((item) => item.id === line.productId)?.name}`).join(", ")}
+                      {" · "}
+                      {tierLabel(lines[0].tier)}
+                    </small>
+                  </p>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={async () => {
+                      if (session.demo) confirmReceipt(true, agent.id, receiptId)
+                      else if (session.token) await rumahCall("sahkan", { receiptId }, session.token)
+                      refresh()
+                    }}
+                  >
+                    Sahkan {rm(total)}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        <h2>Dropship</h2>
+        {waitingShips.length === 0 ? (
+          <p className="quiet">Tiada penghantaran yang menunggu.</p>
+        ) : (
+          <ul className="tx">
+            {waitingShips.map((order) => (
+              <li key={order.id}>
+                <span className="tx-mark">H</span>
+                <p>
+                  <strong>{order.customer}</strong>
+                  <small>
+                    {order.address} · Rumah terima {rm(order.housePrice)}
+                  </small>
+                </p>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={async () => {
+                    if (session.demo) markShipped(true, agent.id, order.id)
+                    else if (session.token) await rumahCall("hantar", { orderId: order.id }, session.token)
+                    refresh()
+                  }}
+                >
+                  Sudah dihantar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </article>
+  )
+}
+
 export function Stok() {
-  const { session, db } = useHouse()
+  const { session, db, refresh } = useHouse()
   const agent = db.agents.find((item) => item.id === session?.id)
   if (!session) return null
   if (!agent) {
@@ -93,6 +189,37 @@ export function Stok() {
             })}
           </ul>
         )}
+        {agent.rank === "ejen" ? (
+          <ul className="tx">
+            {db.orders
+              .filter((order) => order.supplierId === agent.id && order.status === "menunggu-bayaran")
+              .map((order) => {
+                const buyer = db.agents.find((item) => item.id === order.buyerId)
+                const product = catalog.find((item) => item.id === order.productId)
+                return (
+                  <li key={order.id}>
+                    <span className="tx-mark">{order.qty}</span>
+                    <p>
+                      <strong>{buyer?.name}</strong>
+                      <small>
+                        {product?.name} · Menunggu anda sahkan bayaran · {rm(order.price)}
+                      </small>
+                    </p>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => {
+                        confirmInventory(session.demo, agent.id, order.id)
+                        refresh()
+                      }}
+                    >
+                      Sahkan
+                    </button>
+                  </li>
+                )
+              })}
+          </ul>
+        ) : null}
         <p className="quiet">
           {agent.rank === "ejen"
             ? `Beri kod ${agent.code} kepada orang yang membeli inventori ini. Belian mereka terus dari syarikat tidak masuk ke dompet anda.`

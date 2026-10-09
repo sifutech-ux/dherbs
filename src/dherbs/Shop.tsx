@@ -124,6 +124,12 @@ export function Shop({ agentView }: { agentView: boolean }) {
                           className="text-button"
                           disabled={supplierStock < amount}
                           onClick={() => {
+                            if (!session.demo) {
+                              setNotice(
+                                "Belian inventori orang lain disahkan oleh pemegang stok. Gunakan contoh untuk melihat aliran itu.",
+                              )
+                              return
+                            }
                             const result = buyFromInventory(
                               session.demo,
                               agent.id,
@@ -132,7 +138,7 @@ export function Shop({ agentView }: { agentView: boolean }) {
                             )
                             setNotice(
                               result.ok
-                                ? `${amount} ${product.name} diambil dari inventori ${supplier.name}.`
+                                ? `${amount} ${product.name} menunggu ${supplier.name} sahkan bayaran.`
                                 : result.error,
                             )
                             refresh()
@@ -146,6 +152,10 @@ export function Shop({ agentView }: { agentView: boolean }) {
                           type="button"
                           className="text-button"
                           onClick={() => {
+                            if (!session.demo) {
+                              setNotice("Rekod jualan menggunakan stok yang sudah disahkan rumah.")
+                              return
+                            }
                             const result = recordRetail(session.demo, agent.id, product.id)
                             setNotice(
                               result.ok

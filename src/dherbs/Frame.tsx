@@ -3,17 +3,19 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import { useCart } from "./cart"
 import { useHouse } from "./session"
 
-const rooms = [
+const agentRooms = [
   { to: "/kedai", label: "Kedai" },
   { to: "/troli", label: "Troli" },
   { to: "/stok", label: "Stok" },
   { to: "/dompet", label: "Dompet" },
 ]
+const houseRooms = [{ to: "/pesanan", label: "Pesanan" }]
 
 const contoh = [
   { id: "farah", label: "Farah · Inventori" },
   { id: "hana", label: "Hana · Ejen" },
   { id: "rizal", label: "Rizal · Dropship" },
+  { id: "rumah", label: "Rumah" },
 ]
 
 export function Frame() {
@@ -21,6 +23,7 @@ export function Frame() {
   const cart = useCart()
   const { pathname } = useLocation()
   const agent = session ? db.agents.find((item) => item.id === session.id) : undefined
+  const rooms = agent?.rank === "rumah" ? houseRooms : agentRooms
 
   useEffect(() => {
     document.title = "D'Herbs"
