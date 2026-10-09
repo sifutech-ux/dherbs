@@ -8,12 +8,18 @@ if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
     exit;
 }
 
-$products = [
-    "kecil" => ["name" => "Set Kecil", "sell" => 99.0],
-    "rumah" => ["name" => "Set Rumah", "sell" => 189.0],
-    "jualan" => ["name" => "Set Jualan", "sell" => 319.0],
-];
 $rates = ["master" => 0.6, "stockist" => 0.7, "agen" => 0.8, "pelanggan" => 1.0];
+
+function seed_products(): array
+{
+    return [[
+        "id" => "samma-denim",
+        "name" => "D'Herbs Samma Denim Bag",
+        "line" => "Beg tangan berkilat sederhana, Medium Glossy, bersama kotak.",
+        "sell" => 100.0,
+        "cost" => 55.0,
+    ]];
+}
 
 function data_path(): string
 {
@@ -32,7 +38,17 @@ function data_path(): string
 
 function empty_db(): array
 {
-    return ["agents" => [], "orders" => [], "sales" => [], "dropships" => [], "tokens" => []];
+    return ["agents" => [], "orders" => [], "sales" => [], "dropships" => [], "tokens" => [], "products" => []];
+}
+
+function ensure_db(): array
+{
+    $db = load_db();
+    if (!isset($db["products"]) || !is_array($db["products"]) || count($db["products"]) === 0) {
+        $db["products"] = seed_products();
+        save_db($db);
+    }
+    return $db;
 }
 
 function load_db(): array
@@ -78,13 +94,30 @@ function unit_price(array $product, string $tier): float
     return round2($product["sell"] * $rates[$tier]);
 }
 
-function quote(array $lines): array
+function visible_products(array $db, bool $withCost): array
 {
-    global $products;
-    $pay = function (string $tier) use ($lines, $products): float {
+    $out = [];
+    foreach ($db["products"] as $product) {
+        $row = [
+            "id" => $product["id"],
+            "name" => $product["name"],
+            "line" => $product["line"],
+            "sell" => (float)$product["sell"],
+        ];
+        if ($withCost) {
+            $row["cost"] = (float)$product["cost"];
+        }
+        $out[] = $row;
+    }
+    return $out;
+}
+
+function quote(array $lines, array $map): array
+{
+    $pay = function (string $tier) use ($lines, $map): float {
         $sum = 0.0;
         foreach ($lines as $line) {
-            $sum += unit_price($products[$line["productId"]], $tier) * $line["qty"];
+            $sum += unit_price($map[$line["productId"]], $tier) * $line["qty"];
         }
         return round2($sum);
     };
@@ -140,6 +173,10 @@ if (!is_array($body)) $body = [];
 $action = $_GET["action"] ?? ($body["action"] ?? "");
 $token = $_SERVER["HTTP_X_DHERBS_TOKEN"] ?? ($body["token"] ?? "");
 
+if ($action === "katalog") {
+    ok(["products" => visible_products(ensure_db(), false)]);
+}
+
 if ($action === "status") {
     $db = load_db();
     $ada = false;
@@ -149,7 +186,7 @@ if ($action === "status") {
     ok(["rumah" => $ada]);
 }
 
-$db = load_db();
+$db = ensure_db();
 
 if ($action === "buka" || $action === "daftar" || $action === "masuk") {
     $name = trim((string)($body["name"] ?? ""));
@@ -237,21 +274,25 @@ $me = actor($db, (string)$token);
 if (!$me) fail("Sesi tamat. Masuk semula.", 401);
 
 if ($action === "state") {
-    ok(["db" => public_db($db)]);
+    ok(["db" => public_db($db), "products" => visible_products($db, $me["rank"] === "rumah")]);
 }
 
 if ($action === "beli") {
     if ($me["rank"] !== "ejen") fail("Troli stok ini untuk ejen.");
     $lines = $body["lines"] ?? [];
     if (!is_array($lines) || count($lines) === 0) fail("Troli kosong.");
+    $map = [];
+    foreach ($db["products"] as $product) {
+        $map[$product["id"]] = $product;
+    }
     $clean = [];
     foreach ($lines as $line) {
         $id = (string)($line["productId"] ?? "");
         $qty = (int)($line["qty"] ?? 0);
-        if (!isset($products[$id]) || $qty < 1 || $qty > 400) fail("Kuantiti tidak sah.");
+        if (!isset($map[$id]) || $qty < 1 || $qty > 400) fail("Kuantiti tidak sah.");
         $clean[] = ["productId" => $id, "qty" => $qty];
     }
-    $priced = quote($clean);
+    $priced = quote($clean, $map);
     $at = gmdate("c");
     $receiptId = uid();
     foreach ($clean as $line) {
@@ -260,7 +301,7 @@ if ($action === "beli") {
             "receiptId" => $receiptId,
             "buyerId" => $me["id"],
             "productId" => $line["productId"],
-            "price" => unit_price($products[$line["productId"]], $priced["tier"]),
+            "price" => unit_price($map[$line["productId"]], $priced["tier"]),
             "qty" => $line["qty"],
             "source" => "rumah",
             "supplierId" => null,
