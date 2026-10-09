@@ -5,8 +5,6 @@ import {
   RECEIPT_AGEN,
   RECEIPT_MASTER,
   RECEIPT_STOCKIST,
-  catalog,
-  findProduct,
   quoteReceipt,
   rm,
   tierLabel,
@@ -17,7 +15,7 @@ import { rumahCall } from "./remote"
 import { checkoutCompany, checkoutDropship } from "./store"
 
 export function Troli() {
-  const { session, db, refresh } = useHouse()
+  const { session, db, products, refresh } = useHouse()
   const cart = useCart()
   const agent = db.agents.find((item) => item.id === session?.id)
   const [notice, setNotice] = useState("")
@@ -34,7 +32,7 @@ export function Troli() {
   }
 
   const priced = cart.lines.flatMap((line) => {
-    const product = findProduct(line.productId)
+    const product = products.find((item) => item.id === line.productId)
     return product ? [{ product, qty: line.qty }] : []
   })
   const quote = quoteReceipt(priced)
@@ -73,7 +71,7 @@ export function Troli() {
       <section className="wrap">
         {cart.lines.length === 0 ? (
           <p className="quiet">
-            Troli kosong. <Link to="/kedai">Pilih set di kedai.</Link>
+            Troli kosong. <Link to="/kedai">Pilih di kedai.</Link>
           </p>
         ) : (
           <>
@@ -84,7 +82,7 @@ export function Troli() {
             </article>
             <ul className="tx">
               {cart.lines.map((line) => {
-                const product = catalog.find((item) => item.id === line.productId)
+                const product = products.find((item) => item.id === line.productId)
                 if (!product) return null
                 const unit = unitPrice(product, quote.tier)
                 return (

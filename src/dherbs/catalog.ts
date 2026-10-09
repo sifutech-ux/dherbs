@@ -1,4 +1,4 @@
-/** Harga contoh. Senarai sebenar menyusul apabila kos pembekal diketahui. */
+/** Tiga set ini untuk demo sahaja. Kedai hidup baca senarai dari rumah. */
 export const RECEIPT_AGEN = 500
 export const RECEIPT_STOCKIST = 5000
 export const RECEIPT_MASTER = 15000
@@ -25,6 +25,8 @@ export type Product = {
   line: string
   /** Harga pasaran kepada pelanggan. */
   sell: number
+  /** Kos pembekal. Hanya sampai bila meja rumah yang meminta senarai. */
+  cost?: number
 }
 
 export const catalog: Product[] = [

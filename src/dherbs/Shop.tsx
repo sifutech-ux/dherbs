@@ -5,7 +5,6 @@ import {
   RECEIPT_AGEN,
   RECEIPT_MASTER,
   RECEIPT_STOCKIST,
-  catalog,
   rankLabel,
   rm,
   unitPrice,
@@ -14,8 +13,9 @@ import { useHouse } from "./session"
 import { buyFromInventory, recordRetail, stockCount } from "./store"
 
 export function Shop({ agentView }: { agentView: boolean }) {
-  const { session, db, refresh } = useHouse()
+  const { session, db, products, catalogReady, refresh } = useHouse()
   const cart = useCart()
+  const live = !session?.demo
   const agent =
     agentView && session ? db.agents.find((item) => item.id === session.id) : undefined
   const [notice, setNotice] = useState("")
@@ -29,7 +29,7 @@ export function Shop({ agentView }: { agentView: boolean }) {
     <article className="page">
       <header className="hero dherbs-hero">
         <p className="eyebrow">{agent ? rankLabel(agent.rank) : "D'Herbs"}</p>
-        <h1 className="dherbs-title">Set yang lebih kecil.</h1>
+        <h1 className="dherbs-title">{live ? "Kedai." : "Set yang lebih kecil."}</h1>
         <p className="hero-line">
           {agent?.rank === "dropship"
             ? "Isi troli dan alamat pelanggan. Harga ikut jumlah resit itu. Rumah yang menghantar."
@@ -37,9 +37,14 @@ export function Shop({ agentView }: { agentView: boolean }) {
         </p>
       </header>
       <section className="wrap dherbs-sets">
-        <p className="section-label">Harga contoh</p>
+        <p className="section-label">{live ? "Senarai" : "Harga contoh"}</p>
+        {!catalogReady ? (
+          <p className="quiet">Senarai kedai dimuatkan.</p>
+        ) : products.length === 0 ? (
+          <p className="quiet">Kedai belum ada produk.</p>
+        ) : null}
         <ol className="set-list">
-          {catalog.map((product, index) => {
+          {(catalogReady ? products : []).map((product, index) => {
             const own = agent ? stockCount(db, agent.id, product.id) : 0
             const supplier =
               agent?.rank === "ejen" && agent.supplierId
@@ -182,7 +187,7 @@ export function Shop({ agentView }: { agentView: boolean }) {
         {notice ? <p className="shop-note">{notice}</p> : null}
         {agent && cart.count > 0 ? (
           <p className="quiet">
-            <Link to="/troli">Troli · {cart.count} set</Link>
+            <Link to="/troli">Troli · {cart.count}</Link>
           </p>
         ) : null}
         <p className="quiet">

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Navigate } from "react-router-dom"
-import { catalog, rankLabel, rm, tierLabel } from "./catalog"
+import { rankLabel, rm, tierLabel } from "./catalog"
 import { rumahCall } from "./remote"
 import { Shop } from "./Shop"
 import { useHouse } from "./session"
@@ -17,7 +17,7 @@ export function Kedai() {
 }
 
 export function Pesanan() {
-  const { session, db, refresh } = useHouse()
+  const { session, db, products, refresh } = useHouse()
   const agent = db.agents.find((item) => item.id === session?.id)
   if (!session || !agent) return null
   if (agent.rank !== "rumah") {
@@ -50,15 +50,23 @@ export function Pesanan() {
             {[...receipts.entries()].map(([receiptId, lines]) => {
               const buyer = db.agents.find((item) => item.id === lines[0]?.buyerId)
               const total = lines.reduce((sum, line) => sum + line.price * line.qty, 0)
+              const houseProfit = lines.reduce((sum, line) => {
+                const cost = products.find((item) => item.id === line.productId)?.cost
+                return cost == null ? sum : sum + (line.price - cost) * line.qty
+              }, 0)
+              const costKnown = lines.every(
+                (line) => products.find((item) => item.id === line.productId)?.cost != null,
+              )
               return (
                 <li key={receiptId}>
                   <span className="tx-mark">R</span>
                   <p>
                     <strong>{buyer?.name ?? "Ejen"}</strong>
                     <small>
-                      {lines.map((line) => `${line.qty} ${catalog.find((item) => item.id === line.productId)?.name}`).join(", ")}
+                      {lines.map((line) => `${line.qty} ${products.find((item) => item.id === line.productId)?.name}`).join(", ")}
                       {" · "}
                       {tierLabel(lines[0].tier)}
+                      {costKnown ? ` · Untung rumah ${rm(houseProfit)}` : ""}
                     </small>
                   </p>
                   <button
@@ -112,7 +120,7 @@ export function Pesanan() {
 }
 
 export function Stok() {
-  const { session, db, refresh } = useHouse()
+  const { session, db, products, refresh } = useHouse()
   const agent = db.agents.find((item) => item.id === session?.id)
   if (!session) return null
   if (!agent) {
@@ -157,7 +165,7 @@ export function Stok() {
         {agent.rank === "dropship" ? (
           <ul className="tx">
             {shipments.map((order) => {
-              const product = catalog.find((item) => item.id === order.productId)
+              const product = products.find((item) => item.id === order.productId)
               return (
                 <li key={order.id}>
                   <span className="tx-mark">H</span>
@@ -174,7 +182,7 @@ export function Stok() {
           </ul>
         ) : (
           <ul className="stock-list">
-            {catalog.map((product) => {
+            {products.map((product) => {
               const onHand = stockCount(db, agent.id, product.id)
               return (
                 <li key={product.id}>
@@ -195,7 +203,7 @@ export function Stok() {
               .filter((order) => order.supplierId === agent.id && order.status === "menunggu-bayaran")
               .map((order) => {
                 const buyer = db.agents.find((item) => item.id === order.buyerId)
-                const product = catalog.find((item) => item.id === order.productId)
+                const product = products.find((item) => item.id === order.productId)
                 return (
                   <li key={order.id}>
                     <span className="tx-mark">{order.qty}</span>
@@ -231,7 +239,7 @@ export function Stok() {
 }
 
 export function Dompet() {
-  const { session, db } = useHouse()
+  const { session, db, products } = useHouse()
   const agent = db.agents.find((item) => item.id === session?.id)
   if (!session) return null
   if (!agent) {
@@ -273,7 +281,7 @@ export function Dompet() {
                 .slice()
                 .reverse()
                 .map((order) => {
-                  const product = catalog.find((item) => item.id === order.productId)
+                  const product = products.find((item) => item.id === order.productId)
                   return (
                     <li key={order.id}>
                       <span className="tx-mark">P</span>

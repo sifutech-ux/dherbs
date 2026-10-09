@@ -1,3 +1,4 @@
+import type { Product } from "./catalog"
 import type { DB } from "./store"
 
 export type RemoteAgent = { id: string; name: string; rank: string }
@@ -7,6 +8,7 @@ type RemoteOk = {
   token?: string
   agent?: RemoteAgent
   db?: DB
+  products?: Product[]
   tier?: string
   total?: number
   receiptId?: string
@@ -22,12 +24,15 @@ export async function rumahCall(
   token?: string,
 ): Promise<RemoteOk | RemoteFail> {
   const response = await fetch(`/api/index.php?action=${encodeURIComponent(action)}`, {
-    method: action === "status" || action === "state" ? "GET" : "POST",
+    method: action === "status" || action === "state" || action === "katalog" ? "GET" : "POST",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { "X-Dherbs-Token": token } : {}),
     },
-    body: action === "status" || action === "state" ? undefined : JSON.stringify({ ...body, token }),
+    body:
+      action === "status" || action === "state" || action === "katalog"
+        ? undefined
+        : JSON.stringify({ ...body, token }),
   })
   const payload = (await response.json()) as RemoteOk | RemoteFail
   if (!response.ok && payload && typeof payload === "object" && "error" in payload) return payload

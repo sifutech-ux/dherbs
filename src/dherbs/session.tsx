@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { catalog, type Product } from "./catalog"
 import { rumahCall } from "./remote"
 import {
   loadDB,
@@ -18,6 +19,8 @@ import {
 type HouseValue = {
   session: Session | null
   db: DB
+  products: Product[]
+  catalogReady: boolean
   refresh: () => void
   enter: (session: Session) => void
   leave: () => void
@@ -29,14 +32,29 @@ export function HouseProvider({ children }: { children: ReactNode }) {
   const [session, setLocal] = useState<Session | null>(() => readSession())
   const [tick, setTick] = useState(0)
   const [remote, setRemote] = useState<DB | null>(null)
+  const [shelf, setShelf] = useState<Product[]>([])
+  const [shelfReady, setShelfReady] = useState(false)
 
   useEffect(() => {
-    if (!session || session.demo || !session.token) return
+    if (session?.demo) return
     let stop = false
-    rumahCall("state", {}, session.token).then((result) => {
-      if (stop || !result.ok || !result.db) return
-      setRemote(result.db)
-    })
+    const load = async () => {
+      try {
+        const result = session?.token
+          ? await rumahCall("state", {}, session.token)
+          : await rumahCall("katalog")
+        if (stop || !result.ok) {
+          if (!stop) setShelfReady(true)
+          return
+        }
+        if (result.db) setRemote(result.db)
+        setShelf(result.products ?? [])
+        setShelfReady(true)
+      } catch {
+        if (!stop) setShelfReady(true)
+      }
+    }
+    load()
     return () => {
       stop = true
     }
@@ -49,9 +67,13 @@ export function HouseProvider({ children }: { children: ReactNode }) {
     return loadDB(session?.demo ?? false)
   }, [session, tick, remote])
 
+  const products = session?.demo ? catalog : shelf
+
   const value: HouseValue = {
     session,
     db,
+    products,
+    catalogReady: session?.demo ? true : shelfReady,
     refresh: () => setTick((n) => n + 1),
     enter: (next) => {
       setSession(next)

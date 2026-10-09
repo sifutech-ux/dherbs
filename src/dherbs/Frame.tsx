@@ -88,7 +88,7 @@ export function Frame() {
       <footer className="foot">
         <div className="wrap foot-inner">
           <p>D'Herbs</p>
-          <p className="foot-mark">Set yang lebih kecil</p>
+          <p className="foot-mark">{session?.demo ? "Set yang lebih kecil" : "Kedai"}</p>
           <p className="foot-year">2026</p>
         </div>
       </footer>
